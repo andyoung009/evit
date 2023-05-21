@@ -104,6 +104,10 @@ def build_transform(is_train, args):
         if not resize_im:
             # replace RandomResizedCropAndInterpolation with
             # RandomCrop
+            
+            # 从 transforms 变量中获取一个子变量 transforms[0]，它代表变换序列中的第一个变换（Python 中下标从0开始）。
+            # 将这个子变量设置为一个新的 transforms.RandomCrop 变换。这个变换将对图像进行随机裁剪，裁剪后的大小为 args.input_size，同时在四周添加4个像素的填充。
+            # 这个操作将修改原始的变换序列，使其第一个变换变成了 RandomCrop 变换。
             transform.transforms[0] = transforms.RandomCrop(
                 args.input_size, padding=4)
         return transform
@@ -118,4 +122,5 @@ def build_transform(is_train, args):
 
     t.append(transforms.ToTensor())
     t.append(transforms.Normalize(IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD))
+    # transforms.Compose(t) 是 torchvision.transforms 中的一个函数，用于将多个图像变换组合起来，形成一个新的变换序列。它接受一个变换序列列表 t 作为输入，将列表中的变换按照给定的顺序依次应用到图像上。
     return transforms.Compose(t)

@@ -124,6 +124,8 @@ class MetricLogger(object):
         space_fmt = ':' + str(len(str(len(iterable)))) + 'd'
         log_msg = [
             header,
+            # 在这个日志消息的格式化字符串中，'[{0' + space_fmt + '}/{1}]'是一个包含两个占位符的字符串。
+            # 其中，{0}和{1}分别表示格式化字符串中的第一个参数和第二个参数，即当前迭代的索引和总迭代数。这两个参数用于表示训练进度的百分比。
             '[{0' + space_fmt + '}/{1}]',
             'eta: {eta}',
             '{meters}',

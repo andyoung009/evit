@@ -158,5 +158,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     # generate lmdb
     path = args.dir
-    folder2lmdb(path, name="train")
+    folder2lmdb(path, name="train")  
     folder2lmdb(path, name="val")

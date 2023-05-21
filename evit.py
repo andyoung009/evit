@@ -45,7 +45,25 @@ from helpers import complement_idx
 
 _logger = logging.getLogger(__name__)
 
-
+# /这是一个Python函数，名为`_cfg`，它接受一个URL和其他关键字参数，并返回一个字典对象。该函数返回的字典包含一些图像分类任务的配置参数，例如输入图像大小、均值和标准差、第一个卷积层和分类器的名称等。
+# 下面是该函数中使用的参数及其含义：
+# - `url`: 预训练模型的URL地址。
+# - `num_classes`: 分类任务的类别数。
+# - `input_size`: 输入图像的大小，格式为(C,H,W)。
+# - `pool_size`: 最后一个池化层的大小，如果没有则为`None`。
+# - `crop_pct`: 图像随机裁剪的比例。
+# - `interpolation`: 图像缩放时使用的插值方法。
+# - `fixed_input_size`: 是否使用固定输入大小的图像。
+# - `mean`: 图像每个通道的均值。
+# - `std`: 图像每个通道的标准差。
+# - `first_conv`: 第一个卷积层的名称。
+# - `classifier`: 分类器的名称。
+# 该函数的目的是返回一个包含所有配置参数的字典，以便在代码中使用这些参数。例如，您可以使用以下代码来获取数据集的类别数：
+    # ```
+    # cfg = _cfg()
+    # num_classes = cfg['num_classes']
+    # ```
+# 请注意，由于该函数名以一个下划线开头，这意味着它是一个私有函数，应该只在本模块中使用，而不应该被其他模块调用。
 def _cfg(url='', **kwargs):
     return {
         'url': url,
@@ -56,7 +74,12 @@ def _cfg(url='', **kwargs):
         **kwargs
     }
 
-
+# 这段代码是一个Python字典，其中每个键都是一个字符串，表示一个预定义的ViT模型的名称，每个值都是一个包含该模型的配置信息的字典。
+# 具体来说，这个字典中包含了多个预定义的ViT模型，包括DeiT和Patch-Based ViT。
+# 对于每个模型，都提供了一些配置信息，包括输入图像的大小、预处理的均值和标准差、预训练模型的下载链接、分类器的类型等等。
+# 例如，对于"deit_small_patch16_224"这个模型，提供了该模型的预训练权重下载链接、预处理的均值和标准差等信息。
+# 而对于"deit_base_patch16_384"这个模型，还提供了输入图像的大小、裁剪比例等信息。
+# 这些配置信息可以用来初始化预定义的ViT模型，或者用于自定义ViT模型的训练和测试。通过使用这些预定义的模型和配置信息，可以方便地进行图像分类、物体检测等任务。
 default_cfgs = {
     'deit_small_patch16_304': _cfg(
         mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD,
@@ -110,6 +133,11 @@ def drop_path(x, drop_prob: float = 0., training: bool = False):
     """
     if drop_prob == 0. or not training:
         return x
+    # 这段代码实现了Dropout操作的功能。Dropout是一种常用的正则化方法，用于防止神经网络过拟合。它通过将一些神经元的输出随机置为0来减少神经元之间的共适应性，从而使网络更具有泛化能力。
+    # 在这段代码中，输入x是一个张量，该张量的第一维是batch大小，其余维度表示每个样本的特征。keep_prob是一个浮点数，表示每个神经元保留的概率，即保留的概率为1-keep_prob的神经元将被置为0。
+    # 首先，代码计算了一个形状为(x.shape[0], 1, ..., 1)的随机张量random_tensor。这个随机张量的每个元素都是从[0, 1]均匀分布中采样得到的，然后加上keep_prob，使得每个元素的值都在[keep_prob, 1 + keep_prob]之间。这样做的目的是为了保证在训练时，每个神经元都有一定的概率被保留。
+    # 然后，代码将随机张量二值化，即将大于等于1的元素置为1，小于1的元素置为0，以使得每个神经元以概率keep_prob被保留。最后，代码将输入张量x除以keep_prob，以保证输出期望值与输入期望值相同，避免了模型在训练时输出过小的问题。最后，代码将x乘以随机张量，得到Dropout后的结果。
+    # 总之，这段代码实现了Dropout操作的功能，用于防止神经网络过拟合。它通过将一些神经元的输出随机置为0来减少神经元之间的共适应性，从而使网络更具有泛化能力。
     keep_prob = 1 - drop_prob
     shape = (x.shape[0],) + (1,) * (x.ndim - 1)  # work with diff dim tensors, not just 2D ConvNets
     random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype, device=x.device)
@@ -204,6 +232,8 @@ class Attention(nn.Module):
         x = self.proj(x)
         x = self.proj_drop(x)
 
+        # 此处代码实际上是tokens稀疏化的关键部分
+        # 除去cls token
         left_tokens = N - 1
         if self.keep_rate < 1 and keep_rate < 1 or tokens is not None:  # double check the keep rate
             left_tokens = math.ceil(keep_rate * (N - 1))
@@ -212,11 +242,12 @@ class Attention(nn.Module):
             if left_tokens == N - 1:
                 return x, None, None, None, left_tokens
             assert left_tokens >= 1
-            cls_attn = attn[:, :, 0, 1:]  # [B, H, N-1]
-            cls_attn = cls_attn.mean(dim=1)  # [B, N-1]
-            _, idx = torch.topk(cls_attn, left_tokens, dim=1, largest=True, sorted=True)  # [B, left_tokens]
+            cls_attn = attn[:, :, 0, 1:]  # attn的shape为(B,H,N,N),经过切片操作后,维度信息为[B, H, N-1],选取了cls attn与其他tokens分类相关联的权重向量
+            cls_attn = cls_attn.mean(dim=1)  # [B, N-1] 即不同的注意力头做了平均处理,见论文第四页中描述
+            _, idx = torch.topk(cls_attn, left_tokens, dim=1, largest=True, sorted=True)  # [B, left_tokens]选取topK个平均attn分数最高的token
             # cls_idx = torch.zeros(B, 1, dtype=idx.dtype, device=idx.device)
             # index = torch.cat([cls_idx, idx + 1], dim=1)
+            # 维度扩展并广播
             index = idx.unsqueeze(-1).expand(-1, -1, C)  # [B, left_tokens, C]
 
             return x, index, idx, cls_attn, left_tokens
@@ -250,16 +281,20 @@ class Block(nn.Module):
         tmp, index, idx, cls_attn, left_tokens = self.attn(self.norm1(x), keep_rate, tokens)
         x = x + self.drop_path(tmp)
 
+        # 如果存在tokens的筛选
         if index is not None:
             # B, N, C = x.shape
             non_cls = x[:, 1:]
+            # 利用索引对tokens进行选取
             x_others = torch.gather(non_cls, dim=1, index=index)  # [B, left_tokens, C]
 
+            # 存在tokens融合
             if self.fuse_token:
                 compl = complement_idx(idx, N - 1)  # [B, N-1-left_tokens]
                 non_topk = torch.gather(non_cls, dim=1, index=compl.unsqueeze(-1).expand(-1, -1, C))  # [B, N-1-left_tokens, C]
 
                 non_topk_attn = torch.gather(cls_attn, dim=1, index=compl)  # [B, N-1-left_tokens]
+                # 将非topk的token和相应的cls token沿着N的维度加权后消除掉该维度,最后得到了融合的extra_token
                 extra_token = torch.sum(non_topk * non_topk_attn.unsqueeze(-1), dim=1, keepdim=True)  # [B, 1, C]
                 x = torch.cat([x[:, 0:1], x_others, extra_token], dim=1)
             else:
@@ -335,6 +370,9 @@ class EViT(nn.Module):
         self.norm = norm_layer(embed_dim)
 
         # Representation layer
+        # 这段代码定义了一个PyTorch模型的一部分。如果`representation_size`非零且`distilled`为False，那么模型将包含一个线性层和一个tanh激活函数，用于将输入张量的每个元素映射到一个具有`representation_size`个特征的向量空间中。这个特征向量可以被用作模型输出的表示。
+        # 具体来说，如果`representation_size`不为零且`distilled`为False，那么`self.num_features`被设置为`representation_size`，表示模型输出的特征数量。然后，`self.pre_logits`被定义为一个包含一个线性层和一个tanh激活函数的顺序容器。这个线性层的输入大小为`embed_dim`，输出大小为`representation_size`，因此它将输入张量的每个元素映射到一个具有`representation_size`个特征的向量空间中。然后，tanh激活函数被应用于映射后的特征向量，以将其压缩到[-1, 1]的范围内。
+        # 如果`representation_size`为零或`distilled`为True，那么`self.pre_logits`被定义为一个恒等映射，即不对输入张量进行任何操作，直接将其作为输出。这种情况下，模型的输出将与输入张量的形状相同，特征的数量也将与输入张量的特征数量相同。
         if representation_size and not distilled:
             self.num_features = representation_size
             self.pre_logits = nn.Sequential(OrderedDict([
@@ -352,6 +390,17 @@ class EViT(nn.Module):
 
         self.init_weights(weight_init)
 
+    # 这段代码定义了一个初始化模型权重的函数`init_weights`。这个函数接受一个字符串参数`mode`，用于指定初始化权重的模式。
+    # 首先，函数对位置嵌入（`pos_embed`）和蒸馏令牌（`dist_token`）进行截断正态分布初始化，其中标准差为0.02。
+    # 位置嵌入是一个形状为`(1, num_patches+1, embed_dim)`的张量，用于将位置信息编码为模型输入的嵌入向量。
+    # 蒸馏令牌是一个形状为`(1, 1, embed_dim)`的张量，用于在蒸馏模式下给模型提供额外的输入。
+    # 然后，根据`mode`参数的值选择不同的初始化方式。如果`mode`以'jax'开头，则函数将使用JAX论文中使用的权重初始化方式。
+    # 在这种情况下，函数使用`named_apply`函数将`_init_vit_weights`函数应用于模型的所有权重。
+    # `_init_vit_weights`函数根据提供的`head_bias`参数对权重进行截断正态分布初始化，并根据JAX论文中的方法对权重进行缩放。
+    # 如果`mode`不以'jax'开头，则函数将使用默认的PyTorch初始化方式。在这种情况下，函数使用`trunc_normal_`函数对模型的
+    # `cls_token`权重进行截断正态分布初始化，并使用`_init_vit_weights`函数对模型的其他权重进行初始化。`_init_vit_weights`函数对权重进行
+    # 截断正态分布初始化，并根据模型的输入和输出维度对权重进行缩放。如果模型的输出维度是类别数，则还会对权重进行类别数的缩放，以确保输出的概率
+    # 分布正确地反映了类别的先验概率。最后，函数返回已初始化的模型。
     def init_weights(self, mode=''):
         assert mode in ('jax', 'jax_nlhb', 'nlhb', '')
         head_bias = -math.log(self.num_classes) if 'nlhb' in mode else 0.
@@ -397,6 +446,8 @@ class EViT(nn.Module):
         _, _, h, w = x.shape
         if not isinstance(keep_rate, (tuple, list)):
             keep_rate = (keep_rate, ) * self.depth
+        
+        # 这段代码检查变量tokens是否为元组或列表类型的实例，如果不是则执行相应的代码块
         if not isinstance(tokens, (tuple, list)):
             tokens = (tokens, ) * self.depth
         assert len(keep_rate) == self.depth
@@ -410,6 +461,15 @@ class EViT(nn.Module):
 
         # for input with another resolution, interpolate the positional embedding.
         # used for finetining a ViT on images with larger size.
+        
+        # 这段代码实现了ViT模型中的位置嵌入的计算。位置嵌入是一个形状为`(1, num_patches+1, embed_dim)`的张量，用于将位置信息编码为模型输入的嵌入向量。
+        # 在这段代码中，变量`pos_embed`包含了预先计算好的位置嵌入张量。
+        # 首先，代码检查输入`x`的第二个维度是否等于`pos_embed`的第二个维度。如果这两个维度不相等，则说明输入的张量大小与预先计算的位置嵌入张量大小不匹配。
+        # 为了解决这个问题，代码首先确保输入张量`x`的高度和宽度相等，即变量`h`和`w`相等。然后，代码从预先计算的位置嵌入张量中提取出实际的位置嵌入，即不包括CLS令牌的位置嵌入。
+        # 接下来，代码将实际的位置嵌入张量重新排列成形状为`(1, embed_dim, h, w)`的张量，其中`h`和`w`是实际的位置嵌入的高度和宽度。
+        # 然后，代码使用双三次插值将实际的位置嵌入张量调整为与输入张量相同的大小。
+        # 最后，代码将调整后的位置嵌入张量重新排列成形状为`(1, num_patches+1, embed_dim)`的张量，并与原始位置嵌入张量拼接在一起，得到新的位置嵌入张量。
+        # 最后，代码将位置嵌入张量与输入张量相加，并使用`pos_drop`函数对结果进行dropout处理，得到最终的嵌入向量`x`。
         pos_embed = self.pos_embed
         if x.shape[1] != pos_embed.shape[1]:
             assert h == w  # for simplicity assume h == w
@@ -417,6 +477,8 @@ class EViT(nn.Module):
             hw = int(math.sqrt(real_pos.shape[1]))
             true_hw = int(math.sqrt(x.shape[1] - self.num_tokens))
             real_pos = real_pos.transpose(1, 2).reshape(1, self.embed_dim, hw, hw)
+
+            # 使用了PyTorch的F.interpolate()函数将real_pos张量上采样到由true_hw指定的新大小。
             new_pos = F.interpolate(real_pos, size=true_hw, mode='bicubic', align_corners=False)
             new_pos = new_pos.reshape(1, self.embed_dim, -1).transpose(1, 2)
             pos_embed = torch.cat([pos_embed[:, :self.num_tokens], new_pos], dim=1)
@@ -624,6 +686,8 @@ def _create_evit(variant, pretrained=False, default_cfg=None, **kwargs):
         _logger.warning("Removing representation layer for fine-tuning.")
         repr_size = None
 
+    # 此处可以参考timm官网的文档:
+    # https://timm.fast.ai/tutorial_feature_extractor
     model = build_model_with_cfg(
         EViT, variant, pretrained,
         default_cfg=default_cfg,

@@ -65,6 +65,10 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
         optimizer.zero_grad()
 
         # this attribute is added by timm on one optimizer (adahessian)
+        # 这段代码检查了optimizer对象是否具有属性is_second_order，并且该属性的值为True。
+        # is_second_order通常用于指示优化器是否支持二阶梯度计算，也就是计算Hessian矩阵或者类似的二阶导数信息。
+        # 在深度学习中，常见的优化算法（如SGD、Adam等）是一阶优化算法，它们只计算一阶梯度（即一阶导数），用于更新模型的参数。
+        # 但是，有些优化算法需要计算二阶梯度（如牛顿法），以便更准确地更新参数。
         is_second_order = hasattr(optimizer, 'is_second_order') and optimizer.is_second_order
         loss_scaler(loss, optimizer, clip_grad=max_norm,
                     parameters=model.parameters(), create_graph=is_second_order)
@@ -153,7 +157,23 @@ def get_acc(data_loader, model, device, keep_rate=None, tokens=None):
 
     return metric_logger.acc1.global_avg
 
-
+# 这段代码是一个用于可视化模型输出的函数。它接受一个数据加载器、一个模型、一个设备、一个输出目录、一个可视化数量和一个融合令牌作为输入，并输出一个字典，其中包含损失和准确率等指标的平均值。
+# 在这个函数中，我们可以看到以下步骤：
+# 1. 创建一个交叉熵损失函数。
+# 2. 创建一个MetricLogger对象，用于记录和显示训练指标。
+# 3. 将模型切换到评估模式。
+# 4. 遍历数据加载器中的图像和标签。
+# 5. 将图像和标签移动到指定的设备上。
+# 6. 使用模型对图像进行前向传递，并计算输出和损失。
+# 7. 计算输出的准确率。
+# 8. 对图像进行反归一化处理。
+# 9. 对输出进行可视化，并将结果保存到输出目录中。
+# 10. 更新指标记录器中的指标。
+# 11. 如果达到了指定的可视化数量，则停止遍历数据加载器。
+# 12. 同步指标记录器中的指标。
+# 13. 打印平均损失和准确率等指标的值。
+# 14. 返回指标记录器中的指标的平均值。
+# 总之，这个函数是一个用于可视化模型输出的工具，它使用PyTorch中的函数和类来实现图像处理、模型评估和指标记录等功能。它可以根据需要进行修改和定制，以适应不同的应用场景。
 @torch.no_grad()
 def visualize_mask(data_loader, model, device, output_dir, n_visualization, fuse_token, keep_rate=None):
     criterion = torch.nn.CrossEntropyLoss()
@@ -175,6 +195,7 @@ def visualize_mask(data_loader, model, device, output_dir, n_visualization, fuse
         B = images.size(0)
 
         with torch.cuda.amp.autocast():
+            # idx.shape = (Depth, B, N_)
             output, idx = model(images, keep_rate, get_idx=True)
             loss = criterion(output, target)
 

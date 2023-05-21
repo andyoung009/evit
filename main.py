@@ -30,6 +30,16 @@ import models
 import utils
 from helpers import speed_test, get_macs
 
+# *************************************
+import torch
+import torch.distributed as dist
+
+
+# local_rank = int(os.environ["CUDA_VISIBLE_DEVICES"].split(",")[0])
+# rank = local_rank
+# *************************************
+
+
 from tensorboardX import SummaryWriter
 import warnings
 warnings.filterwarnings('ignore', 'Argument interpolation should be of type InterpolationMode instead of int')
@@ -462,6 +472,7 @@ def main(args):
                     'args': args,
                 }, checkpoint_path)
 
+        # 每30个epoch打印一次验证集的精度
         test_interval = 30
         if epoch % test_interval == 0 or epoch == args.epochs - 1:
             test_stats = evaluate(data_loader_val, model, device, keep_rate)
@@ -490,6 +501,33 @@ def main(args):
 
 
 if __name__ == '__main__':
+    # # add on 2023.04.21 
+
+    # # 设置环境变量为了复现可视化代码
+    # os.environ["MASTER_ADDR"] = "localhost"
+    # os.environ["MASTER_PORT"] = "12345"
+    # os.environ["WORLD_SIZE"] = "2"
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+    # # 获取当前进程的排名
+    # rank = int(os.environ.get("RANK", "0"))
+    # # 初始化分布式训练环境
+    # # torch.distributed.init_process_group(backend="nccl")
+    # # # torch.distributed.init_process_group(backend="nccl", init_method="env://")
+    # dist.init_process_group(
+    #     backend="nccl",
+    #     init_method="env://",
+    #     rank=rank,
+    #     world_size=int(os.environ["WORLD_SIZE"])
+    # )
+
+
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # if torch.cuda.is_available():
+    #     torch.cuda.set_device(1)  # 设置使用第一个GPU
+
+    # # 在当前进程中，只使用指定的 GPU 设备
+    # torch.cuda.set_device(rank)
+    # **************************************************
     parser = argparse.ArgumentParser('DeiT training and evaluation script', parents=[get_args_parser()])
     args = parser.parse_args()
     if args.output_dir:
